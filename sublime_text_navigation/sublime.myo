@@ -1,0 +1,145 @@
+scriptId = "org.tessenow.myo.sublime-text"
+scriptDetailsUrl = "https://github.com/tessi/myo_scripts"
+scriptTitle = "Sublime Text Navigation"
+
+startingPitch = 0
+isScrolling = false
+lastTime = 0
+pitchTolerance = 0.15
+
+function onForegroundWindowChange(app, title)
+  if platform == "Windows" then
+    return app == "sublime_text.exe"
+  elseif platform == "MacOS" then
+    return app == "com.sublimetext.3"
+  end
+end
+
+function activeAppName()
+  return "Sublime Text"
+end
+
+function onActiveChange(isActive)
+  if not isActive then
+    isScrolling = false
+  end
+end
+
+function onPoseEdge(pose, edge)
+  pose = conditionallySwapWave(pose)
+
+  if (edge == "on") then
+    if myo.isUnlocked() then
+      if (pose == "waveLeft") then
+        -- Hand points to the left \
+        onWaveLeft()
+      elseif (pose == "waveRight") then
+        -- Hand points to the right /
+        onWaveRight()
+      elseif (pose == "fist") then
+        onFist()
+      elseif (pose == "fingersSpread") then
+        onFingersSpread()
+      end
+    end
+  else
+    releaseScrollHold()
+  end
+end
+
+function onPeriodic()
+  if isScrolling then
+    local scrollTime = myo.getTimeMilliseconds()
+    local differenceTime = scrollTime - lastTime
+
+    if scrollTime - lastTime > 70 then
+      local currentPitch = myo.getPitch()
+      local differencePitch = currentPitch - startingPitch
+
+      if differencePitch > pitchTolerance then
+        myo.keyboard("up_arrow", "press", "control", "alt")
+      elseif differencePitch < -pitchTolerance then
+        myo.keyboard("down_arrow", "press", "control", "alt")
+      end
+
+      lastTime = myo.getTimeMilliseconds()
+    end
+  end
+end
+
+function conditionallySwapWave(pose)
+  if myo.getArm() == "left" then
+          if pose == "waveIn" then
+                pose = "waveRight"
+          elseif pose == "waveOut" then
+                pose = "waveLeft"
+          end
+  else
+    if pose == "waveIn" then
+                pose = "waveLeft"
+          elseif pose == "waveOut" then
+                pose = "waveRight"
+          end
+      end
+
+      return pose
+end
+
+function onWaveLeft()
+  -- Fingers point to the left (regardless of hand) \
+
+  releaseScrollHold()
+
+  if platform == "MacOS" then
+    myo.keyboard("leftbracket","press","command","shift")
+  else
+    myo.keyboard("leftbracket","press","win","shift")
+  end
+
+  myo.notifyUserAction()
+end
+
+function onWaveRight()
+  -- Fingers point to the right (regardless of hand) /
+
+  releaseScrollHold()
+
+  if platform == "MacOS" then
+    myo.keyboard("rightbracket","press","command","shift")
+  else
+    myo.keyboard("leftbracket","press","win","shift")
+  end
+
+  myo.notifyUserAction()
+end
+
+function onFist()
+  -- Used for scrolling
+
+  myo.unlock("hold")
+
+  startingPitch = myo.getPitch()
+  lastTime = myo.getTimeMilliseconds()
+  isScrolling = true
+
+  myo.notifyUserAction()
+end
+
+function onFingersSpread()
+  -- Refresh page
+
+  releaseScrollHold()
+
+  if platform == "MacOS" then
+    myo.keyboard("p", "press", "command")
+  else
+    myo.keyboard("p", "press", "win")
+  end
+
+  myo.notifyUserAction()
+end
+
+function releaseScrollHold()
+  isScrolling = false
+  myo.unlock("timed")
+end
